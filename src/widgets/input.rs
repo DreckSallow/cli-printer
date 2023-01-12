@@ -1,9 +1,11 @@
 use core::time;
 
 use crossterm::{
+    cursor::MoveTo,
     event::{self, poll, KeyCode},
     execute,
     style::{Print, Stylize},
+    terminal::Clear,
 };
 
 use crate::{
@@ -28,6 +30,11 @@ pub struct Input<'a> {
 
 impl<'a> Widget for Input<'a> {
     fn render(&mut self, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
+        execute!(
+            stdout,
+            Clear(crossterm::terminal::ClearType::CurrentLine),
+            MoveTo(0, 0),
+        )?;
         if !self.complete_input {
             execute!(
                 stdout,

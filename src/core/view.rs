@@ -1,6 +1,7 @@
 use crossterm::{
     cursor::MoveTo,
     execute,
+    style::Print,
     terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
@@ -25,6 +26,7 @@ impl<'a> WidgetRoot for SectionsView<'a> {
             if let Action::Exit = self.action {
                 break;
             }
+            execute!(stdout, Clear(ClearType::FromCursorDown), MoveTo(0, 0))?;
 
             if let Action::Next = self.action {
                 self.action = Action::KeepSection;
@@ -42,13 +44,19 @@ impl<'a> WidgetRoot for SectionsView<'a> {
 
             for section in &mut self.sections[0..self.max] {
                 section.render(stdout)?; // WidgetChild rendering
+                execute!(stdout, Print("\n"))?;
                 self.action = section.do_any()
                 // Handle the previus state and return the new Action State
             }
         }
         execute!(stdout, LeaveAlternateScreen)?;
+        let mut count = 0;
         for section in &mut self.sections[0..self.max] {
             section.render(stdout)?; // WidgetChild rendering
+            if count + 1 != self.max {
+                execute!(stdout, Print("\n"))?;
+            }
+            count += 1;
         }
 
         Ok(())
