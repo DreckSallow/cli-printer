@@ -1,2 +1,3 @@
 pub mod core;
-mod examples;
+pub mod examples;
+pub mod widgets;

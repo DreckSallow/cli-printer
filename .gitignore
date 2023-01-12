@@ -1,2 +1,4 @@
 /target
 /Cargo.lock
+## For develop things
+/src/main.rs 

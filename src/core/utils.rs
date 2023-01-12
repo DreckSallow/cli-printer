@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 /// Define a Action into SectionsView:
 ///  - `Next`: Continue with the next section
 ///  - `Exit`: Finish the render
@@ -10,5 +8,3 @@ pub enum Action {
     Exit,
     KeepSection,
 }
-
-pub struct WidgetState<T: Display>(pub T);

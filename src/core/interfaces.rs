@@ -1,6 +1,6 @@
 use std::io::{self, Stdout};
 
-use super::utils::{Action, WidgetState};
+use super::utils::Action;
 
 ///Define a Widget to render in each turn of the loop
 pub trait Widget {
@@ -16,6 +16,5 @@ pub trait WidgetRoot {
 }
 
 pub trait WidgetChild: Widget {
-    fn action(&self) -> Action;
-    fn get_state(&self) -> &WidgetState<String>;
+    fn do_any(&mut self) -> Action;
 }
