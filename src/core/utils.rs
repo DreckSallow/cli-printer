@@ -8,3 +8,5 @@ pub enum Action {
     Exit,
     KeepSection,
 }
+
+pub struct IconAndLabel<'a>(pub &'a str, pub &'a str);

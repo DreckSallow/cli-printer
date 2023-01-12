@@ -4,9 +4,12 @@ use crossterm::{
     style::{Print, Stylize},
 };
 
-use crate::core::{
-    interfaces::{Widget, WidgetChild},
-    utils::Action,
+use crate::{
+    core::{
+        interfaces::{Widget, WidgetChild},
+        utils::{Action, IconAndLabel},
+    },
+    styles::{ICON_CHECK, ICON_QUESTION},
 };
 
 use super::list::{self, List, ListState};
@@ -14,14 +17,13 @@ use super::list::{self, List, ListState};
 type Cb = dyn FnMut(&ListState, &bool) -> Action;
 
 type Callback = Box<Cb>;
-pub struct TextInit<'a>(pub &'a str, pub &'a str);
 
 pub struct ListSelected<'a> {
     pub list: list::List<'a>,
     callback: Callback,
     is_selected: bool,
-    text_init: TextInit<'a>,
-    text_final: TextInit<'a>,
+    text_init: IconAndLabel<'a>,
+    text_final: IconAndLabel<'a>,
 }
 
 impl<'a> Widget for ListSelected<'a> {
@@ -83,17 +85,17 @@ impl<'a> ListSelected<'a> {
             list: List::new(options),
             callback: Box::new(|_, _| Action::KeepSection),
             is_selected: false,
-            text_init: TextInit("? ", "Choose an option: "),
-            text_final: TextInit("√ ", "Option selected: "),
+            text_init: IconAndLabel(ICON_QUESTION, "Choose an option: "),
+            text_final: IconAndLabel(ICON_CHECK, "Option selected: "),
         }
     }
     pub fn add_fn(&mut self, cb: impl FnMut(&ListState, &bool) -> Action + 'a + 'static) {
         self.callback = Box::new(cb);
     }
     pub fn add_text_init(&mut self, icon: &'a str, label: &'a str) {
-        self.text_init = TextInit(icon, label);
+        self.text_init = IconAndLabel(icon, label);
     }
     pub fn add_text_final(&mut self, icon: &'a str, label: &'a str) {
-        self.text_final = TextInit(icon, label);
+        self.text_final = IconAndLabel(icon, label);
     }
 }
