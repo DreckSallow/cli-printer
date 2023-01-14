@@ -15,20 +15,26 @@ use crate::{
     },
     styles::{ICON_CHECK, ICON_QUESTION},
 };
-type Cb = dyn FnMut(&String, &bool) -> Action;
+type Cb<T> = dyn FnMut(InputData, T) -> Action;
 
-type Callback = Box<Cb>;
+type Callback<T> = Box<Cb<T>>;
 
-pub struct Input<'a> {
+pub struct Input<'a, T> {
     text_init: IconAndLabel<'a>,
     text_final: IconAndLabel<'a>,
-    input: String,
-    is_hidden: bool,
-    complete_input: bool,
-    callback: Callback,
+    pub input: String,
+    pub is_hidden: bool,
+    pub complete_input: bool,
+    callback: Callback<T>,
 }
 
-impl<'a> Widget for Input<'a> {
+pub struct InputData {
+    pub input: String,
+    pub is_hidden: bool,
+    pub complete_input: bool,
+}
+
+impl<'a, T: Clone> Widget for Input<'a, T> {
     fn render(&mut self, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
         execute!(
             stdout,
@@ -74,13 +80,14 @@ impl<'a> Widget for Input<'a> {
     }
 }
 
-impl<'a> WidgetChild for Input<'a> {
-    fn do_any(&mut self) -> utils::Action {
-        (self.callback)(&self.input, &self.complete_input)
+impl<'a, T: Clone> WidgetChild<T> for Input<'a, T> {
+    fn do_any(&mut self, global_state: T) -> utils::Action {
+        let data = self.get_internal_data();
+        (self.callback)(data, global_state)
     }
 }
 
-impl<'a> Default for Input<'a> {
+impl<'a, T: Clone> Default for Input<'a, T> {
     fn default() -> Self {
         Self {
             text_init: IconAndLabel(ICON_QUESTION, "Write: "),
@@ -88,8 +95,8 @@ impl<'a> Default for Input<'a> {
             input: String::new(),
             is_hidden: false,
             complete_input: false,
-            callback: Box::new(|content, is_selected| {
-                if *is_selected && content.len() > 0 {
+            callback: Box::new(|input, _gloabl_state| {
+                if input.complete_input && input.input.len() > 0 {
                     return Action::Next;
                 }
                 Action::KeepSection
@@ -98,7 +105,7 @@ impl<'a> Default for Input<'a> {
     }
 }
 
-impl<'a> Input<'a> {
+impl<'a, T: Clone> Input<'a, T> {
     pub fn new(text_init: IconAndLabel<'a>, text_final: IconAndLabel<'a>) -> Self {
         Self {
             text_init,
@@ -112,7 +119,15 @@ impl<'a> Input<'a> {
     pub fn hidden(&mut self, hidden: bool) {
         self.is_hidden = hidden
     }
-    pub fn add_fn(&mut self, cb: impl FnMut(&String, &bool) -> Action + 'a + 'static) {
+    pub fn add_fn(&mut self, cb: impl FnMut(InputData, T) -> Action + 'a + 'static) {
         self.callback = Box::new(cb);
+    }
+
+    fn get_internal_data(&self) -> InputData {
+        InputData {
+            input: self.input.to_owned(),
+            is_hidden: self.is_hidden,
+            complete_input: self.complete_input,
+        }
     }
 }

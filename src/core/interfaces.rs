@@ -15,6 +15,6 @@ pub trait WidgetRoot {
     }
 }
 
-pub trait WidgetChild: Widget {
-    fn do_any(&mut self) -> Action;
+pub trait WidgetChild<T: Clone>: Widget {
+    fn do_any(&mut self, global_state: T) -> Action;
 }

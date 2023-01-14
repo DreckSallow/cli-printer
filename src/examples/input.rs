@@ -17,14 +17,14 @@ pub fn render_input() -> io::Result<()> {
         IconAndLabel(ICON_QUESTION, "Type your name: "),
         IconAndLabel(ICON_CHECK, "Your name is: "),
     );
-    input.add_fn(|_content, is_complete| {
-        if *is_complete {
+    input.add_fn(|this_input, _state| {
+        if this_input.complete_input {
             return Action::Next;
         }
         Action::KeepSection
     });
 
-    let mut section_list = SectionsView::new();
+    let mut section_list = SectionsView::new(Some(String::new()));
     section_list.child(input);
     section_list.render(&mut stdout)?;
     Ok(())

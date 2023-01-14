@@ -12,21 +12,28 @@ use crate::{
     styles::{ICON_CHECK, ICON_QUESTION},
 };
 
-use super::list::{self, List, ListState};
+use super::list;
 
-type Cb = dyn FnMut(&ListState, &bool) -> Action;
+type Cb<T> = dyn FnMut(ListSelectedData, T) -> Action;
 
-type Callback = Box<Cb>;
+type Callback<T> = Box<Cb<T>>;
 
-pub struct ListSelected<'a> {
+pub struct ListSelected<'a, T> {
     pub list: list::List<'a>,
-    callback: Callback,
-    is_selected: bool,
+    callback: Callback<T>,
+    pub is_selected: bool,
     text_init: IconAndLabel<'a>,
     text_final: IconAndLabel<'a>,
 }
 
-impl<'a> Widget for ListSelected<'a> {
+pub struct ListSelectedData {
+    pub is_selected: bool,
+    pub offset: usize,
+    pub current_option: Option<String>,
+    pub length: usize,
+}
+
+impl<'a, T: Clone> Widget for ListSelected<'a, T> {
     fn render(&mut self, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
         if !self.is_selected {
             execute!(
@@ -73,23 +80,24 @@ impl<'a> Widget for ListSelected<'a> {
     }
 }
 
-impl<'a> WidgetChild for ListSelected<'a> {
-    fn do_any(&mut self) -> Action {
-        (self.callback)(&self.list.state, &self.is_selected)
+impl<'a, T: Clone> WidgetChild<T> for ListSelected<'a, T> {
+    fn do_any(&mut self, global_state: T) -> Action {
+        let data = self.get_internal_data();
+        (self.callback)(data, global_state)
     }
 }
 
-impl<'a> ListSelected<'a> {
+impl<'a, T: Clone> ListSelected<'a, T> {
     pub fn new(options: Vec<&'a str>) -> Self {
         Self {
-            list: List::new(options),
-            callback: Box::new(|_, _| Action::KeepSection),
+            list: list::List::new(options),
+            callback: Box::new(|_, _| Action::Next),
             is_selected: false,
             text_init: IconAndLabel(ICON_QUESTION, "Choose an option: "),
             text_final: IconAndLabel(ICON_CHECK, "Option selected: "),
         }
     }
-    pub fn add_fn(&mut self, cb: impl FnMut(&ListState, &bool) -> Action + 'a + 'static) {
+    pub fn add_fn(&mut self, cb: impl FnMut(ListSelectedData, T) -> Action + 'a + 'static) {
         self.callback = Box::new(cb);
     }
     pub fn add_text_init(&mut self, icon: &'a str, label: &'a str) {
@@ -97,5 +105,17 @@ impl<'a> ListSelected<'a> {
     }
     pub fn add_text_final(&mut self, icon: &'a str, label: &'a str) {
         self.text_final = IconAndLabel(icon, label);
+    }
+    fn get_internal_data(&self) -> ListSelectedData {
+        let current_option = match self.list.get_current_index().1 {
+            Some(opt) => Some(opt.0.to_string()),
+            None => None,
+        };
+        ListSelectedData {
+            is_selected: self.is_selected,
+            offset: self.list.state.offset,
+            current_option,
+            length: self.list.length,
+        }
     }
 }

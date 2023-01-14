@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crossterm::{
     cursor::MoveTo,
     execute,
@@ -11,13 +13,14 @@ use super::{
 };
 
 /// SectionsView is like a list, that render all widgets child, such as sections
-pub struct SectionsView<'a> {
-    sections: Vec<Box<dyn WidgetChild + 'a>>,
+pub struct SectionsView<'a, T: Clone> {
+    sections: Vec<Box<dyn WidgetChild<Rc<RefCell<T>>> + 'a>>,
     action: Action,
     max: usize,
+    pub global_state: Rc<RefCell<T>>,
 }
 
-impl<'a> WidgetRoot for SectionsView<'a> {
+impl<'a, T: Clone> WidgetRoot for SectionsView<'a, T> {
     fn render(&mut self, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
         execute!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
         execute!(stdout, EnterAlternateScreen)?;
@@ -45,7 +48,7 @@ impl<'a> WidgetRoot for SectionsView<'a> {
             for section in &mut self.sections[0..self.max] {
                 section.render(stdout)?; // WidgetChild rendering
                 execute!(stdout, Print("\n"))?;
-                self.action = section.do_any()
+                self.action = section.do_any(Rc::clone(&self.global_state));
                 // Handle the previus state and return the new Action State
             }
         }
@@ -63,15 +66,16 @@ impl<'a> WidgetRoot for SectionsView<'a> {
     }
 }
 
-impl<'a> SectionsView<'a> {
-    pub fn new() -> Self {
+impl<'a, T: Clone> SectionsView<'a, T> {
+    pub fn new(global_state: T) -> Self {
         Self {
             sections: Vec::new(),
             action: Action::KeepSection,
             max: 0,
+            global_state: Rc::new(RefCell::new(global_state)),
         }
     }
-    pub fn child(&mut self, child: impl WidgetChild + 'a) {
+    pub fn child(&mut self, child: impl WidgetChild<Rc<RefCell<T>>> + 'a) {
         if self.max == 0 {
             self.max = 1;
         }
