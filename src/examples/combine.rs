@@ -7,7 +7,7 @@ use crate::{
         view::SectionsView,
     },
     styles::{ICON_CHECK, ICON_QUESTION},
-    widgets::{input::Input, list_selected::ListSelected},
+    widgets::{Input, ListSelected},
 };
 
 #[derive(Clone, Debug)]

@@ -2,7 +2,7 @@ use std::io;
 
 use crate::{
     core::{interfaces::WidgetRoot, utils::Action, view::SectionsView},
-    widgets,
+    widgets::ListSelected,
 };
 
 pub fn render_list_view() -> io::Result<()> {
@@ -10,7 +10,7 @@ pub fn render_list_view() -> io::Result<()> {
 
     let options = vec!["Option1", "Option2", "Option3", "Nothing"];
 
-    let mut list_selected = widgets::list_selected::ListSelected::new(options);
+    let mut list_selected = ListSelected::new(options);
     list_selected.add_text_init("? ", "Choose an option: ");
     list_selected.add_text_final("√ ", "Option selected: ");
 

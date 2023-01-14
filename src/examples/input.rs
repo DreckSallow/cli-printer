@@ -7,7 +7,7 @@ use crate::{
         view::SectionsView,
     },
     styles::{ICON_CHECK, ICON_QUESTION},
-    widgets::input::Input,
+    widgets::Input,
 };
 
 pub fn render_input() -> io::Result<()> {
