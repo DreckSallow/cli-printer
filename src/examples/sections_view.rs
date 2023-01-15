@@ -14,7 +14,7 @@ pub fn render_list_view() -> io::Result<()> {
     list_selected.add_text_init("? ", "Choose an option: ");
     list_selected.add_text_final("√ ", "Option selected: ");
 
-    list_selected.add_fn(|this_list, _state| {
+    list_selected.after(|this_list, _state| {
         if this_list.is_selected {
             return Action::Next;
         }

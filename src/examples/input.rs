@@ -17,7 +17,7 @@ pub fn render_input() -> io::Result<()> {
         IconAndLabel(ICON_QUESTION, "Type your name: "),
         IconAndLabel(ICON_CHECK, "Your name is: "),
     );
-    input.add_fn(|this_input, _state| {
+    input.after(|this_input, _state| {
         if this_input.complete_input {
             return Action::Next;
         }
