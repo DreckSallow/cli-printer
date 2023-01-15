@@ -9,7 +9,7 @@ use crossterm::{
 
 use super::{
     interfaces::{WidgetChild, WidgetRoot},
-    utils::Action,
+    utils::{Action, RenderWidget},
 };
 
 /// SectionsView is like a list, that render all widgets child, such as sections
@@ -24,32 +24,42 @@ impl<'a, T: Clone> WidgetRoot for SectionsView<'a, T> {
     fn render(&mut self, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
         execute!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
         execute!(stdout, EnterAlternateScreen)?;
-        loop {
-            execute!(stdout, Clear(ClearType::FromCursorDown), MoveTo(0, 0))?;
-            if let Action::Exit = self.action {
+        'outer: loop {
+            execute!(stdout, MoveTo(0, 0), Clear(ClearType::FromCursorDown))?;
+
+            if self.action == Action::Exit {
                 break;
             }
-            execute!(stdout, Clear(ClearType::FromCursorDown), MoveTo(0, 0))?;
 
-            if let Action::Next = self.action {
+            if self.action == Action::Next {
                 self.action = Action::KeepSection;
                 if self.max + 1 > self.sections.len() {
-                    self.action = Action::Exit;
                     break;
                 }
                 self.max += 1;
             }
 
             if self.max > self.sections.len() {
-                self.action = Action::Exit;
                 break;
             }
 
+            let mut count = 0;
             for section in &mut self.sections[0..self.max] {
+                if count + 1 == self.max {
+                    let render_widget = section.before_render(Rc::clone(&self.global_state));
+                    if render_widget == RenderWidget::No {
+                        // If not will render widget so, then break the loop
+                        break 'outer;
+                    }
+                }
+
                 section.render(stdout)?; // WidgetChild rendering
+
+                if count + 1 == self.max {
+                    self.action = section.after_render(Rc::clone(&self.global_state));
+                }
                 execute!(stdout, Print("\n"))?;
-                self.action = section.do_any(Rc::clone(&self.global_state));
-                // Handle the previus state and return the new Action State
+                count += 1;
             }
         }
         execute!(stdout, LeaveAlternateScreen)?;

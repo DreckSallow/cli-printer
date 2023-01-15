@@ -7,23 +7,24 @@ use crossterm::{
 use crate::{
     core::{
         interfaces::{Widget, WidgetChild},
-        utils::{Action, IconAndLabel},
+        utils::{Action, IconAndLabel, RenderWidget},
     },
     styles::{ICON_CHECK, ICON_QUESTION},
 };
 
 use super::list;
 
-type Cb<T> = dyn FnMut(ListSelectedData, T) -> Action;
+type AfterCb<T> = dyn FnMut(&mut ListSelectedData, T) -> Action;
 
-type Callback<T> = Box<Cb<T>>;
+type BeforeCb<T> = dyn FnMut(&mut ListSelectedData, T) -> RenderWidget;
 
 pub struct ListSelected<'a, T> {
     pub list: list::List<'a>,
-    callback: Callback<T>,
-    pub is_selected: bool,
+    cb_before: Box<BeforeCb<T>>,
+    cb_after: Box<AfterCb<T>>,
     text_init: IconAndLabel<'a>,
     text_final: IconAndLabel<'a>,
+    local_state: ListSelectedData,
 }
 
 pub struct ListSelectedData {
@@ -35,7 +36,7 @@ pub struct ListSelectedData {
 
 impl<'a, T: Clone> Widget for ListSelected<'a, T> {
     fn render(&mut self, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
-        if !self.is_selected {
+        if !self.local_state.is_selected {
             execute!(
                 stdout,
                 Print(self.text_init.0.cyan()),
@@ -51,8 +52,13 @@ impl<'a, T: Clone> Widget for ListSelected<'a, T> {
                     } else if code == KeyCode::Up {
                         self.list.prev()
                     } else if code == KeyCode::Enter {
-                        self.is_selected = true
+                        self.local_state.is_selected = true
                     }
+                    self.local_state.offset = self.list.state.offset.clone();
+                    self.local_state.current_option = match self.list.get_current_index().1 {
+                        Some(l) => Some(l.0.to_string()),
+                        None => None,
+                    };
                 }
                 _ => {}
             }
@@ -60,9 +66,6 @@ impl<'a, T: Clone> Widget for ListSelected<'a, T> {
         }
 
         let option_selected = self.list.get_current_index();
-        if option_selected.0 == self.list.length - 1 {
-            return Ok(()); // Selected las option (Usually is exit options)
-        }
         let text_selected = match option_selected.1 {
             Some(t) => t.0,
             None => return Ok(()),
@@ -70,10 +73,9 @@ impl<'a, T: Clone> Widget for ListSelected<'a, T> {
 
         execute!(
             stdout,
-            Print(self.text_final.0.cyan()),
+            Print(self.text_final.0.green()),
             Print(self.text_final.1),
             Print(text_selected.dark_grey()),
-            Print("\n")
         )?;
 
         Ok(())
@@ -81,41 +83,42 @@ impl<'a, T: Clone> Widget for ListSelected<'a, T> {
 }
 
 impl<'a, T: Clone> WidgetChild<T> for ListSelected<'a, T> {
-    fn do_any(&mut self, global_state: T) -> Action {
-        let data = self.get_internal_data();
-        (self.callback)(data, global_state)
+    fn after_render(&mut self, global_state: T) -> Action {
+        (self.cb_after)(&mut self.local_state, global_state)
+    }
+
+    fn before_render(&mut self, global_state: T) -> RenderWidget {
+        (self.cb_before)(&mut self.local_state, global_state)
     }
 }
 
 impl<'a, T: Clone> ListSelected<'a, T> {
     pub fn new(options: Vec<&'a str>) -> Self {
+        let length = options.len();
         Self {
             list: list::List::new(options),
-            callback: Box::new(|_, _| Action::Next),
-            is_selected: false,
+            cb_after: Box::new(|_, _| Action::Next),
+            cb_before: Box::new(|_, _| RenderWidget::Yes),
             text_init: IconAndLabel(ICON_QUESTION, "Choose an option: "),
             text_final: IconAndLabel(ICON_CHECK, "Option selected: "),
+            local_state: ListSelectedData {
+                is_selected: false,
+                offset: 0,
+                current_option: None,
+                length,
+            },
         }
     }
-    pub fn add_fn(&mut self, cb: impl FnMut(ListSelectedData, T) -> Action + 'a + 'static) {
-        self.callback = Box::new(cb);
+    pub fn after(&mut self, cb: impl FnMut(&mut ListSelectedData, T) -> Action + 'static) {
+        self.cb_after = Box::new(cb);
+    }
+    pub fn before(&mut self, cb: impl FnMut(&mut ListSelectedData, T) -> RenderWidget + 'static) {
+        self.cb_before = Box::new(cb);
     }
     pub fn add_text_init(&mut self, icon: &'a str, label: &'a str) {
         self.text_init = IconAndLabel(icon, label);
     }
     pub fn add_text_final(&mut self, icon: &'a str, label: &'a str) {
         self.text_final = IconAndLabel(icon, label);
-    }
-    fn get_internal_data(&self) -> ListSelectedData {
-        let current_option = match self.list.get_current_index().1 {
-            Some(opt) => Some(opt.0.to_string()),
-            None => None,
-        };
-        ListSelectedData {
-            is_selected: self.is_selected,
-            offset: self.list.state.offset,
-            current_option,
-            length: self.list.length,
-        }
     }
 }
